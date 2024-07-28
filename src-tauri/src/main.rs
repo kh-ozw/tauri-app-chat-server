@@ -18,11 +18,19 @@ async fn main() {
         .invoke_handler(tauri::generate_handler![greet])
         .setup(|app| {
             let app_handle = app.handle();
+            std::thread::spawn(move || loop {
+                app_handle
+                    .emit_all("back-to-front", "ping frontend".to_string())
+                    .unwrap();
+                std::thread::sleep(std::time::Duration::from_secs(5))
+            });
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+// npm run tauri dev
 
 // use std::sync::{Arc, Mutex};
 // use tauri::Manager;
