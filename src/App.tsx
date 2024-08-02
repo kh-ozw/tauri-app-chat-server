@@ -13,6 +13,10 @@ function App() {
     setGreetMsg(await invoke("greet", { name }));
   }
 
+  function pushBtn1() {
+    invoke("push_btn_1")
+  }
+
   useEffect(() => {
     let unlisten: any;
     async function f() {
@@ -63,7 +67,7 @@ function App() {
       </form>
 
       <p>{greetMsg}</p>
-      <p></p>
+      <button onClick={pushBtn1}>btn 1</button>
     </div>
   );
 }

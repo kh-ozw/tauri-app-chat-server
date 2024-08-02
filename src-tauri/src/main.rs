@@ -12,10 +12,16 @@ use tokio::sync::mpsc;
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
+
+#[tauri::command]
+fn push_btn_1() {
+    println!("push btn_1");
+}
+
 #[tokio::main]
 async fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![greet, push_btn_1,])
         .setup(|app| {
             let app_handle = app.handle();
             std::thread::spawn(move || loop {
@@ -31,6 +37,7 @@ async fn main() {
 }
 
 // npm run tauri dev
+// https://zenn.dev/kumassy/books/6e518fe09a86b2/viewer/1dbeeb
 
 // use std::sync::{Arc, Mutex};
 // use tauri::Manager;
