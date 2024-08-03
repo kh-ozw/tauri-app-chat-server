@@ -1,6 +1,8 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use serde::{Deserialize, Serialize};
+use std::fmt::format;
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -18,10 +20,55 @@ fn push_btn_1() {
     println!("push btn_1");
 }
 
+#[tauri::command]
+fn command_with_message(message: String) -> String {
+    format!("hello {}", message)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct MyMessage {
+    field_str: String,
+    field_u32: u32,
+}
+
+#[tauri::command]
+fn command_with_object(message: MyMessage) -> MyMessage {
+    let MyMessage {
+        field_str,
+        field_u32,
+    } = message;
+
+    MyMessage {
+        field_str: format!("hello {}", field_str),
+        field_u32: field_u32 + 1,
+    }
+}
+
+#[tauri::command]
+fn command_with_error(arg: u32) -> Result<String, String> {
+    if arg % 2 == 0 {
+        Ok(format!("even value {}", arg))
+    } else {
+        Err(format!("odd value {}", arg))
+    }
+}
+
+#[tauri::command]
+fn command_with_async(arg: u32) -> String {
+    "hello".into()
+}
+
 #[tokio::main]
 async fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![greet, push_btn_1,])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            push_btn_1,
+            command_with_message,
+            command_with_object,
+            command_with_error,
+            command_with_async,
+        ])
         .setup(|app| {
             let app_handle = app.handle();
             std::thread::spawn(move || loop {

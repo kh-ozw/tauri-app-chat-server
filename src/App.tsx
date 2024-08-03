@@ -3,6 +3,7 @@ import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/tauri";
 import { emit, listen } from '@tauri-apps/api/event'
 import "./App.css";
+import { message } from "@tauri-apps/api/dialog";
 
 function App() {
   const [greetMsg, setGreetMsg] = useState("");
@@ -15,6 +16,34 @@ function App() {
 
   function pushBtn1() {
     invoke("push_btn_1")
+  }
+
+  function commandWithMessage() {
+    invoke('command_with_message', { message: 'some message' }).then(message => {
+      console.log('command_with_message', message)
+    });
+  }
+
+  function commandWithObject() {
+    invoke('command_with_object', { message: { field_str: 'some message', field_u32: 15 } }).then(message => {
+      console.log('command_with_opject', message)
+    })
+  }
+
+  function commandWithError() {
+    for (let arg of [1, 2]) {
+      invoke('command_with_error', { arg }).then(message => {
+        console.log('command_with_error', message)
+      }).catch(message => {
+        console.error('command_with_error', message)
+      })
+    }
+  }
+
+  function commandWithAsync() {
+    invoke('command_with_async', { arg: 14 }).then(message => {
+      console.log('command_with_async', message)
+    })
   }
 
   useEffect(() => {
@@ -68,6 +97,10 @@ function App() {
 
       <p>{greetMsg}</p>
       <button onClick={pushBtn1}>btn 1</button>
+      <button onClick={commandWithMessage}>cwm</button>
+      <button onClick={commandWithObject}>cwo</button>
+      <button onClick={commandWithError}>cwe</button>
+      <button onClick={commandWithAsync}>cwa</button>
     </div>
   );
 }
