@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::format;
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 
@@ -71,16 +71,65 @@ async fn main() {
         ])
         .setup(|app| {
             let app_handle = app.handle();
-            std::thread::spawn(move || loop {
-                app_handle
-                    .emit_all("back-to-front", "ping frontend".to_string())
-                    .unwrap();
-                std::thread::sleep(std::time::Duration::from_secs(5))
+            let addr = "127.0.0.1:8080";
+            
+            tauri::async_runtime::spawn(async move {
+                let listener = TcpListener::bind(addr).await;
+                match listener {
+                    Ok(listener) => {
+                        println!("start server: {}", addr);
+                        // app_handle
+                        //     .emit_all("back-to-front", "ping frontend".to_string())
+                        //     .unwrap();
+                        // std::thread::sleep(std::time::Duration::from_secs(5))
+                        while let Ok((stream, _addr)) = listener.accept().await {
+                            tauri::async_runtime::spawn(async { accept_connection(stream).await });
+                        }
+                    }
+                    Err(e) => {
+                        println!("{}", e);
+                    }
+                }
             });
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+async fn accept_connection(mut stream: TcpStream) {
+    let addr = stream
+        .peer_addr()
+        .expect("connected streams should have a peer address");
+    println!("addr: {}", addr);
+
+    // ソケットを読み込み部と書き込み部に分割
+    let (reader, mut writer) = stream.split();
+
+    // 文字列への読み込み
+    let mut buf_reader = BufReader::new(reader);
+    let mut line = String::new();
+    loop {
+        match buf_reader.read_line(&mut line).await {
+            Ok(bytes) => {
+                if bytes == 0 {
+                    println!("Close connection: {}", addr);
+                    break;
+                }
+            }
+            Err(e) => {
+                println!("{e}");
+                line = "Invalid UTF-8 detected\n".to_string();
+            }
+        }
+
+        let line2 = line.trim();
+        println!("{}", line2);
+
+        // ソケットへの書き込み（クライアントへの返信）
+        writer.write_all(line2.as_bytes()).await.unwrap();
+        line.clear();
+    }
 }
 
 // npm run tauri dev
