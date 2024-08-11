@@ -3,11 +3,11 @@ import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/tauri";
 import { emit, listen } from '@tauri-apps/api/event'
 import "./App.css";
-import { message } from "@tauri-apps/api/dialog";
 
 function App() {
   const [greetMsg, setGreetMsg] = useState("");
   const [name, setName] = useState("");
+  const [text, setText] = useState("");
 
   async function greet() {
     // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
@@ -50,13 +50,27 @@ function App() {
     let unlisten: any;
     async function f() {
       unlisten = await listen('back-to-front', event => {
-        console.log(`back - to - front ${event.payload} ${new Date()}`);
+        console.log(`${event.payload}`);
+        setText(`${event.payload}`);
       })
     }
     f();
 
+    let unlisten2: any;
+    async function f2() {
+      unlisten = await listen('emit_all_text', event => {
+        console.log(`${event.payload}`);
+        setText(`${event.payload}`);
+      })
+    }
+    f();
+    f2();
+
     return () => {
       if (unlisten) {
+        unlisten();
+      }
+      if (unlisten2) {
         unlisten();
       }
     }
@@ -96,6 +110,7 @@ function App() {
       </form>
 
       <p>{greetMsg}</p>
+      <p>{text}</p>
       <button onClick={pushBtn1}>btn 1</button>
       <button onClick={commandWithMessage}>cwm</button>
       <button onClick={commandWithObject}>cwo</button>

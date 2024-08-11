@@ -2,12 +2,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use serde::{Deserialize, Serialize};
-use std::fmt::format;
-use std::sync::{Arc, Mutex};
-use tauri::Manager;
+use tauri::{AppHandle, Manager};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::mpsc;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
@@ -58,6 +55,11 @@ fn command_with_async(arg: u32) -> String {
     "hello".into()
 }
 
+#[tauri::command]
+fn command_with_print(message: String) -> String {
+    format!("{}", message)
+}
+
 #[tokio::main]
 async fn main() {
     tauri::Builder::default()
@@ -68,22 +70,22 @@ async fn main() {
             command_with_object,
             command_with_error,
             command_with_async,
+            command_with_print,
         ])
         .setup(|app| {
             let app_handle = app.handle();
             let addr = "127.0.0.1:8080";
-            
+
             tauri::async_runtime::spawn(async move {
                 let listener = TcpListener::bind(addr).await;
                 match listener {
                     Ok(listener) => {
                         println!("start server: {}", addr);
-                        // app_handle
-                        //     .emit_all("back-to-front", "ping frontend".to_string())
-                        //     .unwrap();
-                        // std::thread::sleep(std::time::Duration::from_secs(5))
                         while let Ok((stream, _addr)) = listener.accept().await {
-                            tauri::async_runtime::spawn(async { accept_connection(stream).await });
+                            let ah = app_handle.clone();
+                            tauri::async_runtime::spawn(async {
+                                accept_connection(stream, ah).await
+                            });
                         }
                     }
                     Err(e) => {
@@ -97,7 +99,7 @@ async fn main() {
         .expect("error while running tauri application");
 }
 
-async fn accept_connection(mut stream: TcpStream) {
+async fn accept_connection(mut stream: TcpStream, app_handle: AppHandle) {
     let addr = stream
         .peer_addr()
         .expect("connected streams should have a peer address");
@@ -123,17 +125,28 @@ async fn accept_connection(mut stream: TcpStream) {
             }
         }
 
-        let line2 = line.trim();
-        println!("{}", line2);
+        let message = format!("{}: {}", addr, line.trim());
+        println!("{}", message);
+
+        app_handle
+            .emit_all("back-to-front", message.clone())
+            .unwrap();
+
+        app_handle
+            .emit_all("emit_all_text", message)
+            .expect("emit_all_error");
 
         // ソケットへの書き込み（クライアントへの返信）
-        writer.write_all(line2.as_bytes()).await.unwrap();
+        writer.write_all(line.trim().as_bytes()).await.unwrap();
         line.clear();
     }
 }
 
 // npm run tauri dev
 // https://zenn.dev/kumassy/books/6e518fe09a86b2/viewer/1dbeeb
+// https://zenn.dev/yongikim/articles/rust-chat-server-2
+// https://rust-lang.github.io/async-book/07_workarounds/03_send_approximation.html
+// https://programwiz.org/2022/05/16/tauri-state-variable/
 
 // use std::sync::{Arc, Mutex};
 // use tauri::Manager;
