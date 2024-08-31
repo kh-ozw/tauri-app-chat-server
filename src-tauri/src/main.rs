@@ -70,22 +70,32 @@ async fn accept_connection(mut stream: TcpStream, app_handle: AppHandle) {
                 line = "Invalid UTF-8 detected\n".to_string();
             }
         }
-
-        let message = format!("{}: {}", addr, line.trim());
-        println!("message: {}", message);
+        let message = if line.len() == 0 {
+            "接続が切断されました。\n".to_string()
+        } else {
+            format!("{}", line.trim())
+        };
+        println!("message: {}: {}", addr, &message);
 
         let message_info: MessageInfo = MessageInfo {
-            message: format!("{}", line.trim()),
-            user: format!("{}", addr),
+            message: message.clone(),
+            user: format!("{addr}"),
         };
 
         app_handle
-            .emit_all("emit_all_message_info", message_info)
+            .emit_all("emit_all_message_info", &message_info)
             .expect("emit_all_error");
 
-        // ソケットへの書き込み（クライアントへの返信）
-        writer.write_all(&message.as_bytes()).await.unwrap();
-        line.clear();
+        if line.len() == 0 {
+            break;
+        } else {
+            // ソケットへの書き込み（クライアントへの返信）
+            writer
+                .write_all(&message_info.message.as_bytes())
+                .await
+                .unwrap();
+            line.clear();
+        }
     }
 }
 

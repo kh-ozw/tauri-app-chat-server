@@ -19,6 +19,5 @@ export const MsgPanel = (props: MsgPanelProps) => {
             </div>
             <div className="message">{`>   ${messageinfo.message}`}</div>
         </div>
-
     );
 }
